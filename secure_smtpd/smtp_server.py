@@ -21,8 +21,6 @@ class SMTPServer(smtpd.SMTPServer):
         self.ssl_version = ssl_version
         self.subprocesses = []
         self.starttls = starttls
-        # self.ssl_ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
-        # self.ssl_ctx.load_cert_chain(certfile=certfile, keyfile=keyfile)
         self.require_authentication = require_authentication
         self.credential_validator = credential_validator
         self.ssl = use_ssl
@@ -56,7 +54,6 @@ class SMTPServer(smtpd.SMTPServer):
                             keyfile=self.keyfile,
                             ssl_version=self.ssl_version,
                         )
-                        # newsocket.setblocking(True)
                     channel = SMTPChannel(
                         self,
                         newsocket,
