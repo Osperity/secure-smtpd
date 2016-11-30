@@ -13,16 +13,19 @@ except ImportError:
 
 class SMTPServer(smtpd.SMTPServer):
 
-    def __init__(self, localaddr, remoteaddr, ssl=False, certfile=None, keyfile=None, ssl_version=ssl.PROTOCOL_SSLv23, require_authentication=False, credential_validator=None, maximum_execution_time=30, process_count=5):
+    def __init__(self, localaddr, remoteaddr, starttls=True, use_ssl=False, certfile=None, keyfile=None, ssl_version=ssl.PROTOCOL_SSLv23, require_authentication=False, credential_validator=None, maximum_execution_time=30, process_count=5):
         smtpd.SMTPServer.__init__(self, localaddr, remoteaddr)
         self.logger = logging.getLogger( secure_smtpd.LOG_NAME )
         self.certfile = certfile
         self.keyfile = keyfile
         self.ssl_version = ssl_version
         self.subprocesses = []
+        self.starttls = starttls
+        # self.ssl_ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+        # self.ssl_ctx.load_cert_chain(certfile=certfile, keyfile=keyfile)
         self.require_authentication = require_authentication
         self.credential_validator = credential_validator
-        self.ssl = ssl
+        self.ssl = use_ssl
         self.maximum_execution_time = maximum_execution_time
         self.process_count = process_count
         self.process_pool = None
@@ -53,6 +56,7 @@ class SMTPServer(smtpd.SMTPServer):
                             keyfile=self.keyfile,
                             ssl_version=self.ssl_version,
                         )
+                        # newsocket.setblocking(True)
                     channel = SMTPChannel(
                         self,
                         newsocket,
