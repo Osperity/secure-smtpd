@@ -159,7 +159,6 @@ class SMTPChannel(smtpd.SMTPChannel):
         try:
             return smtpd.SMTPChannel.recv(self, buffer_size)
         except ssl.SSLError, err:
-            LOGGER.info('SSL Error in recv')
             if err.args[0] == ssl.SSL_ERROR_WANT_READ:
                 if self.debug:
                     LOGGER.debug('Expected SSL Exception: SSL_ERROR_WANT_READ. Retrieving more data from buffer.')
