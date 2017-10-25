@@ -1,7 +1,6 @@
 import secure_smtpd
 import smtpd
 import base64
-import secure_smtpd
 import asynchat
 import logging
 import ssl
@@ -9,6 +8,8 @@ import ssl
 from asyncore import ExitNow
 NEWLINE = '\n'
 EMPTYSTRING = ''
+
+LOGGER = logging.getLogger(secure_smtpd.LOG_NAME)
 
 
 def decode_b64(data):
@@ -33,6 +34,8 @@ class SMTPChannel(smtpd.SMTPChannel):
 
         self.socket = newsocket
 
+        self.debug = True
+
         self.require_authentication = require_authentication
         self.authenticating = False
         self.authenticated = False
@@ -40,7 +43,15 @@ class SMTPChannel(smtpd.SMTPChannel):
         self.username = None
         self.password = None
         self.credential_validator = credential_validator
-        self.logger = logging.getLogger(secure_smtpd.LOG_NAME)
+
+    def push(self, msg):
+        if self.debug:
+            LOGGER.info(msg)
+        return smtpd.SMTPChannel.push(self, msg)
+
+    def close_when_done(self):
+        LOGGER.info('Closing channel')
+        return asynchat.async_chat.close_when_done(self)
 
     def smtp_QUIT(self, arg):
         self.push('221 Bye')
@@ -56,12 +67,12 @@ class SMTPChannel(smtpd.SMTPChannel):
             self.push('503 Duplicate HELO/EHLO')
         else:
             self.__greeting = arg
-            self.push('250-%s' % self.__fqdn)
-            self.push('250-AUTH PLAIN')
-
+            # self.push('250-%s' % self.__fqdn)
             if self.__server.starttls:
                 self.push('250 STARTTLS')
-            
+            else:
+                self.push('250 AUTH LOGIN PLAIN')
+
     def smtp_STARTTLS(self, arg):
         if arg:
             self.push('501 Syntax error (no parameters allowed)')
@@ -86,18 +97,6 @@ class SMTPChannel(smtpd.SMTPChannel):
             self.__data = ''
         else:
             self.push('454 TLS not available due to temporary reason')
-
-    def smtp_EHLO(self, arg):
-        if not arg:
-            self.push('501 Syntax: HELO hostname')
-            return
-        if self.__greeting:
-            self.push('503 Duplicate HELO/EHLO')
-        else:
-            self.__greeting = arg
-            self.push('250-%s Hello %s' % (self.__fqdn, arg))
-            self.push('250-AUTH LOGIN PLAIN')
-            self.push('250 EHLO')
 
     def smtp_AUTH(self, arg):
         if 'PLAIN' in arg or self.auth_type=='PLAIN':
@@ -126,18 +125,18 @@ class SMTPChannel(smtpd.SMTPChannel):
             self.authenticating = True
             split_args = arg.split(' ')
 
-            # Some implmentations of 'LOGIN' seem to provide the username
+            # Some implementations of 'LOGIN' seem to provide the username
             # along with the 'LOGIN' stanza, hence both situations are
             # handled.
             if len(split_args) == 2:
                 self.username = decode_b64(arg.split(' ')[1])
-                self.push('334 ' + encode_b64('Username'))
+                self.push('334 VXNlcm5hbWU6')  # b64 encoded "Username:"
             else:
-                self.push('334 ' + encode_b64('Username'))
+                self.push('334 VXNlcm5hbWU6')  # b64 encoded "Username:"
+
         elif not self.username:
             self.username = decode_b64(arg)
-            self.push('334 ' + encode_b64('Password'))
-            self.push('334 ' + encode_b64('Password'))
+            self.push('334 UGFzc3dvcmQ6')  # b64 encoded "Password:"
         else:
             self.authenticating = False
             self.password = decode_b64(arg)
@@ -160,9 +159,10 @@ class SMTPChannel(smtpd.SMTPChannel):
         try:
             return smtpd.SMTPChannel.recv(self, buffer_size)
         except ssl.SSLError, err:
+            LOGGER.info('SSL Error in recv')
             if err.args[0] == ssl.SSL_ERROR_WANT_READ:
                 if self.debug:
-                    self.logger.debug('Expected SSL Exception: SSL_ERROR_WANT_READ. Retrieving more data from buffer.')
+                    LOGGER.debug('Expected SSL Exception: SSL_ERROR_WANT_READ. Retrieving more data from buffer.')
                 return ''
             else:
                 raise
@@ -179,7 +179,7 @@ class SMTPChannel(smtpd.SMTPChannel):
         line = EMPTYSTRING.join(self.__line)
 
         if self.debug:
-            self.logger.info('found_terminator(): data: %s' % repr(line))
+            LOGGER.info('found_terminator(): data: %s' % repr(line))
 
         self.__line = []
         if self.__state == self.COMMAND:
