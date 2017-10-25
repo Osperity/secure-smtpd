@@ -68,7 +68,7 @@ class SMTPChannel(smtpd.SMTPChannel):
         else:
             self.__greeting = arg
             # self.push('250-%s' % self.__fqdn)
-            if self.__server.starttls:
+            if self.__server.starttls and not isinstance(self.__conn, ssl.SSLSocket):
                 self.push('250 STARTTLS')
             else:
                 self.push('250 AUTH LOGIN PLAIN')
