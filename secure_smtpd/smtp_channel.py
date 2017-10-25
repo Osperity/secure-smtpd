@@ -178,14 +178,17 @@ class SMTPChannel(smtpd.SMTPChannel):
     def found_terminator(self):
         line = EMPTYSTRING.join(self.__line)
 
-        if self.debug:
-            LOGGER.info('found_terminator(): data: %s' % repr(line))
+        # if self.debug:
+        #     LOGGER.info('found_terminator(): data: %s' % repr(line))
 
         self.__line = []
         if self.__state == self.COMMAND:
             if not line:
                 self.push('500 Error: bad syntax')
                 return
+
+            if self.debug:
+                LOGGER.info('Command received: {}'.format(line))
             method = None
             i = line.find(' ')
 
