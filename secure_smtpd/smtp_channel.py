@@ -7,7 +7,8 @@ import logging
 import ssl
 
 from asyncore import ExitNow
-from smtpd import NEWLINE, EMPTYSTRING
+NEWLINE = '\n'
+EMPTYSTRING = ''
 
 
 def decode_b64(data):
@@ -85,6 +86,18 @@ class SMTPChannel(smtpd.SMTPChannel):
             self.__data = ''
         else:
             self.push('454 TLS not available due to temporary reason')
+
+    def smtp_EHLO(self, arg):
+        if not arg:
+            self.push('501 Syntax: HELO hostname')
+            return
+        if self.__greeting:
+            self.push('503 Duplicate HELO/EHLO')
+        else:
+            self.__greeting = arg
+            self.push('250-%s Hello %s' % (self.__fqdn, arg))
+            self.push('250-AUTH LOGIN PLAIN')
+            self.push('250 EHLO')
 
     def smtp_AUTH(self, arg):
         if 'PLAIN' in arg or self.auth_type=='PLAIN':
