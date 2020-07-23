@@ -7,3 +7,5 @@ config/environment.json
 *.coverage
 *.egg-info
 *.DS_Store
+
+.idea/
