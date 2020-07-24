@@ -7,7 +7,8 @@ import logging
 import ssl
 
 from asyncore import ExitNow
-from smtpd import NEWLINE, EMPTYSTRING
+from smtpd import NEWLINE
+EMPTYSTRING = ''
 
 
 def decode_b64(data):
